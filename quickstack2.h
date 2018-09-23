@@ -48,7 +48,6 @@ extern "C" char* cplus_demangle(const char* mangled, int options);
   }
 
 void print_log(int level, const char* format, ...);
-void print_stack(const char* format, ...);
 
 struct bfd_handle;
 

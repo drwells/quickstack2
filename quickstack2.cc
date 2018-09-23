@@ -5,6 +5,8 @@
 #include <getopt.h>
 #include <sys/mman.h>
 
+#include <fstream>
+#include <iomanip>
 #include <sstream>
 
 #if defined(__i386__)
@@ -83,17 +85,24 @@ void print_log(int level, const char* format, ...) {
     gettimeofday(&tv, 0);
     tt = tv.tv_sec;
     tm = localtime(&tt);
-    fprintf(stdout,
-            "%04d-%02d-%02d %02d:%02d:%02d %06ld: ",
-            tm->tm_year + 1900,
-            tm->tm_mon + 1,
-            tm->tm_mday,
-            tm->tm_hour,
-            tm->tm_min,
-            tm->tm_sec,
-            tv.tv_usec);
+    std::cout << std::setfill('0')
+              << std::setw(4) << tm->tm_year + 1900
+              << '-'
+              << std::setw(2) << tm->tm_mon + 1
+              << '-'
+              << std::setw(2) << tm->tm_mday
+              << ' '
+              << std::setw(2) << tm->tm_hour
+              << ':'
+              << std::setw(2) << tm->tm_min
+              << ':'
+              << std::setw(2) << tm->tm_sec
+              << ' '
+              << std::setw(6) << tv.tv_usec
+              << ": "
+              << std::setfill(' ');
   } else {
-    fprintf(stdout, "                            ");
+    std::cout << "                            ";
   }
 
   va_list args;
@@ -103,19 +112,6 @@ void print_log(int level, const char* format, ...) {
   fprintf(stdout, "\n");
   if (flush_log >= level)
     fflush(stdout);
-}
-
-void print_stack(const char* format, ...) {
-  va_list args;
-  va_start(args, format);
-  if (stack_out_fp) {
-    vfprintf(stack_out_fp, format, args);
-    fflush(stack_out_fp);
-  } else {
-    vfprintf(stdout, format, args);
-    fflush(stdout);
-  }
-  va_end(args);
 }
 
 static string dirname(const string& path) {
@@ -148,29 +144,23 @@ static bool endwith(const string& fullstring, const string& ending) {
   return false;
 }
 
-static int is_pid_stopped(int pid) {
-  FILE* status_file;
-  char buf[100];
-  int retval = 0;
-
-  snprintf(buf, sizeof(buf), "/proc/%d/status", (int)pid);
-  status_file = fopen(buf, "r");
-  if (status_file != NULL) {
-    int have_state = 0;
-    while (fgets(buf, sizeof(buf), status_file)) {
-      buf[strlen(buf) - 1] = '\0';
-      if (strncmp(buf, "State:", 6) == 0) {
-        have_state = 1;
-        break;
+static bool is_pid_stopped(int pid) {
+  const std::string line_start("State:");
+  std::ifstream input("/proc/" + std::to_string(pid) + "/status");
+  std::string line;
+  std::getline(input, line);
+  while (!input.fail() && !input.eof()) {
+    if (startwith(line, line_start)) {
+      if (line.find('T') != std::string::npos) {
+        DBG(9, "Process %d %s", pid, line.c_str());
+        return true;
       }
+      return false;
     }
-    if (have_state && strstr(buf, "T") != NULL) {
-      DBG(9, "Process %d %s", pid, buf);
-      retval = 1;
-    }
-    fclose(status_file);
+    std::getline(input, line);
   }
-  return retval;
+
+  return false;
 }
 
 static bool match_debug_file(const string& name, const char* file) {
@@ -280,7 +270,9 @@ void bfd_handle::close_all() {
 void bfd_handle::init(const char* file = nullptr) {
   abfd = bfd_openr(file ? file : filename, NULL);
   if (!abfd) {
-    fprintf(stderr, "Failed at bfd_openr! %s\n", file ? file : filename);
+    std::cerr << "Failed at bfd_openr! "
+              << (file ? file : filename)
+              << '\n';
     exit(1);
   }
   bfd_check_format(abfd, bfd_object);
@@ -847,13 +839,12 @@ char* get_demangled_symbol(const char* symbol_name) {
 
 void parse_stack_trace(const proc_info& pinfo,
                        const std::vector<ulong>& vals_sps,
-                       size_t maxlen) {
-  char buf[128];
+                       size_t maxlen,
+                       std::ostream &out) {
   uint rank = 1;
-  std::string rstr;
+  bool written_single_line_symbol = false;
 
   for (size_t i = 0; i < std::min(vals_sps.size(), maxlen); ++i) {
-    std::stringstream out;
     const char *file, *name;
     uint lineno;
     ulong addr = vals_sps[i];
@@ -871,11 +862,12 @@ void parse_stack_trace(const proc_info& pinfo,
     if (e != 0) {
       if (offset != 0) {
         if (!single_line) {
-          snprintf(buf, sizeof(buf), "#%02d  ", rank++);
-          out << buf;
-          snprintf(buf, sizeof(buf), "0x%016lx", addr);
-          out << buf;
-          out << " in ";
+          const auto old_fill = out.fill('0');
+          out << '#' << std::setw(2) << rank++;
+          out << std::hex << "0x" << std::setw(16) << addr << " in ";
+          // reset flags
+          out << std::dec << std::setfill(old_fill);
+
           demangled = get_demangled_symbol(e->name.c_str());
           out << demangled;
           free(demangled);
@@ -896,27 +888,27 @@ void parse_stack_trace(const proc_info& pinfo,
               out << file;
               out << ":";
               out << lineno;
-              out << "";
             }
           } else {
             out << " from " << (basename_only ? basename(proc_maps_ent.path)
                                               : proc_maps_ent.path);
           }
-          print_stack("%s\n", out.str().c_str());
+          out << '\n';
         } else {
-          if (!rstr.empty()) {
-            rstr += ":";
+          if (written_single_line_symbol) {
+            out << ':';
           }
           demangled = get_demangled_symbol(e->name.c_str());
-          rstr += demangled;
+          out << demangled;
           free(demangled);
+          written_single_line_symbol = true;
         }
       }
     }
   }
-  if (!rstr.empty()) {
-    print_stack("%s\n", rstr.c_str());
-  }
+  if (written_single_line_symbol)
+    out << '\n';
+  out << std::flush;
 }
 
 static int ptrace_attach_proc(int pid) {
@@ -964,13 +956,12 @@ int get_tgid(int target_pid) {
 }
 
 void get_tids(const int target_pid, thread_list& threads) {
-  char fn[PATH_MAX];
   bool target_pid_exists = false;
-  snprintf(fn, sizeof(fn), "/proc/%d/task", target_pid);
-  DIR* dp = opendir(fn);
+  const std::string task_dir = "/proc/" + std::to_string(target_pid) + "/task";
+  DIR* dp = opendir(task_dir.c_str());
   int tgid = get_tgid(target_pid);
   if (tgid <= 0) {
-    fprintf(stderr, "Failed to get parent's process id!\n");
+    std::cerr << "Failed to get parent's process id!\n";
     exit(1);
   }
   if (dp) {
@@ -994,11 +985,17 @@ void get_tids(const int target_pid, thread_list& threads) {
     } while (dent);
     closedir(dp);
   } else {
-    fprintf(stderr, "Failed to access directory %s\n", fn);
+    std::cerr << "Failed to access directory "
+              << task_dir
+              << '\n';
     exit(1);
   }
   if (!target_pid_exists) {
-    fprintf(stderr, "Process id %d does not exist on %s\n", target_pid, fn);
+    std::cerr << "Process id "
+              << target_pid
+              << " does not exist on "
+              << task_dir
+              << '\n';
     exit(1);
   }
   std::sort(threads.begin(), threads.end());
@@ -1138,6 +1135,10 @@ void dump_stack(const thread_list& threads) {
   vector<ulong>* vals_sps = new vector<ulong>[threads.size()];
   user_regs_struct* regs = new user_regs_struct[threads.size()];
   bool* fails = new bool[threads.size()];
+  std::ofstream output_file;
+  if (stack_out)
+    output_file.open(stack_out);
+  std::ostream &out = stack_out ? output_file : std::cout;
 
   DBG(1, "Reading process symbols..");
   for (size_t i = 0; i < threads.size(); ++i) {
@@ -1167,31 +1168,26 @@ void dump_stack(const thread_list& threads) {
   DBG(1, "Printing stack traces..");
   print_trace_report(pinfos, threads);
 
-  if (stack_out) {
-    stack_out_fp = fopen(stack_out, "w");
-  }
-
   for (size_t i = 0; i < threads.size(); ++i) {
     if (fails[i] == false) {
       if (single_line) {
         const size_t name_width =
             thread_names ? thread_info::max_name_len() + 2 : 0;
-        const string name_info = thread_names ? threads[i].name : "";
-        print_stack("%d  %-*s", threads[i].tid, name_width, name_info.c_str());
+        // always print padding, even if we don't have a name
+        const std::string &name_info = thread_names ? threads[i].name : "";
+        out << threads[i].tid << "  " << std::setw(name_width) << std::left
+            << name_info;
       } else {
-        const string name_info = thread_names ? ", " + threads[i].name : "";
-        print_stack("\nThread %ld (LWP %d)%s:\n",
-                    threads.size() - i,
-                    threads[i].tid,
-                    name_info.c_str());
+        out << "\nThread " << threads.size() - i
+            << "(LWP " << threads[i].tid << ")";
+        if (thread_names)
+          out << ", " << threads[i].name;
+        out << ":\n";
       }
-      parse_stack_trace(pinfos[i], vals_sps[i], trace_length);
+      parse_stack_trace(pinfos[i], vals_sps[i], trace_length, out);
     }
   }
-  if (stack_out_fp) {
-    fclose(stack_out_fp);
-    stack_out_fp = NULL;
-  }
+
   delete[] fails;
   delete[] pinfos;
   delete[] vals_sps;
@@ -1219,7 +1215,9 @@ struct option long_options[] = {
     {"lock_all", no_argument, nullptr, 'l'},
     {nullptr, 0, nullptr, 0}};
 
-static void show_version() { printf("quickstack2 version %s\n", version); }
+static void show_version() {
+  std::cout << "quickstack2 version " << version << '\n';
+}
 
 static void version_exit() {
   show_version();
@@ -1228,48 +1226,39 @@ static void version_exit() {
 
 static void usage_exit() {
   show_version();
-  printf("Usage: \n");
-  printf(" quickstack2 [OPTIONS]\n\n");
-  printf("Example: \n");
-  printf(" quickstack2 -p `pidof mysqld`\n\n");
-  printf("Options (short name):\n");
-  printf(" -p, --pid=N                    :Target process id\n");
-  printf(" -d, --debug=N                  :Debug level\n");
-  printf(
-      " -s, --single_line              :Printing call stack info into one line "
-      "per process, instead of gdb-like output\n");
-  printf(" -n, --thread_names             :Print thread names\n");
-  printf(
-      " -c, --calls=N                  :Maximum ptrace call counts per "
-      "process. Default is 1000\n");
-  printf(
-      " -b, --basename_only            :Suppressing printing directory name of "
-      "the target source files, but printing basename only. This makes easier "
-      "for reading.\n");
-  printf(
-      " -f, --frame_check              :Checking frame pointers on "
-      "non-standard libraries.\n");
-  printf(
-      " -o, --stack_out=f              :Writing stack traces to this file. "
-      "Default is STDOUT.\n");
-  printf(
-      " -t, --debug_print_time_level=N :Suppressing printing timestamp if "
-      "debug level is higher than N. This is for performance reason and "
-      "default level (10) should be fine in most of cases.\n");
-  printf(
-      " -f, --multipe_targets=[0|1]    :Set 1 if tracing multiple different "
-      "processes at one time\n");
-  printf(
-      " -w, --flush_log=N              :Flushing every log output if log level "
-      "is equal or under N\n");
-  printf(
-      " -k, --timeout_seconds=N        :Terminates quickstack2 if exceeding N "
-      "seconds. Default is 600 seconds\n");
-  printf(
-      " -l, --lock_all                 :Locking main process (given by --pid) "
-      "during parsing all other processes. This will lock the whole process "
-      "during taking all stack traces, so stall time is slightly increased, "
-      "but will give more accurate results.\n");
+  std::cout << "Usage: \n"
+            << " quickstack2 [OPTIONS]\n\n"
+            << "Example: \n"
+            << " quickstack2 -p `pidof mysqld`\n\n"
+            << "Options (short name):\n"
+            << " -p, --pid=N                    :Target process id\n"
+            << " -d, --debug=N                  :Debug level\n"
+            << " -s, --single_line              :Printing call stack info into "
+               "one line per process, instead of gdb-like output\n"
+            << " -n, --thread_names             :Print thread names\n"
+            << " -c, --calls=N                  :Maximum ptrace call counts "
+               "per process. Default is 1000\n"
+            << " -b, --basename_only            :Suppressing printing "
+               "directory name of the target source files, but printing "
+               "basename only. This makes easier for reading.\n"
+            << " -f, --frame_check              :Checking frame pointers on "
+               "non-standard libraries.\n"
+            << " -o, --stack_out=f              :Writing stack traces to this "
+               "file. Default is STDOUT.\n"
+            << " -t, --debug_print_time_level=N :Suppressing printing timestamp "
+               "if debug level is higher than N. This is for performance reason "
+               "and default level (10) should be fine in most of cases.\n"
+            << " -f, --multipe_targets=[0|1]    :Set 1 if tracing multiple "
+               "different processes at one time\n"
+            << " -w, --flush_log=N              :Flushing every log output if "
+               "log level is equal or under N\n"
+            << " -k, --timeout_seconds=N        :Terminates quickstack2 if "
+               "exceeding N seconds. Default is 600 seconds\n"
+            << " -l, --lock_all                 :Locking main process (given "
+               "by --pid) during parsing all other processes. This will lock "
+               "the whole process during taking all stack traces, so stall "
+               "time is slightly increased, but will give more accurate "
+               "results.\n";
   exit(1);
 }
 
