@@ -1,5 +1,5 @@
-#ifndef quickstack_h
-#define quickstack_h
+#ifndef quickstack2_h
+#define quickstack2_h
 
 #define PACKAGE 1
 #define PACKAGE_VERSION 1

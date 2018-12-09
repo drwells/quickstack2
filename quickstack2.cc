@@ -1,4 +1,4 @@
-#include "quickstack.h"
+#include "quickstack2.h"
 
 #include <linux/version.h>
 #include <asm/unistd.h>
@@ -1219,7 +1219,7 @@ struct option long_options[] = {
     {"lock_all", no_argument, nullptr, 'l'},
     {nullptr, 0, nullptr, 0}};
 
-static void show_version() { printf("quickstack version %s\n", version); }
+static void show_version() { printf("quickstack2 version %s\n", version); }
 
 static void version_exit() {
   show_version();
@@ -1229,9 +1229,9 @@ static void version_exit() {
 static void usage_exit() {
   show_version();
   printf("Usage: \n");
-  printf(" quickstack [OPTIONS]\n\n");
+  printf(" quickstack2 [OPTIONS]\n\n");
   printf("Example: \n");
-  printf(" quickstack -p `pidof mysqld`\n\n");
+  printf(" quickstack2 -p `pidof mysqld`\n\n");
   printf("Options (short name):\n");
   printf(" -p, --pid=N                    :Target process id\n");
   printf(" -d, --debug=N                  :Debug level\n");
@@ -1263,7 +1263,7 @@ static void usage_exit() {
       " -w, --flush_log=N              :Flushing every log output if log level "
       "is equal or under N\n");
   printf(
-      " -k, --timeout_seconds=N        :Terminates quickstack if exceeding N "
+      " -k, --timeout_seconds=N        :Terminates quickstack2 if exceeding N "
       "seconds. Default is 600 seconds\n");
   printf(
       " -l, --lock_all                 :Locking main process (given by --pid) "
@@ -1362,7 +1362,7 @@ int cont_process_if(int pid) {
 }
 
 /* Checking target process status and sending SIGCONT if needed.
- * If child process (quickstack core logic) is
+ * If child process (quickstack2 core logic) is
  * not aborted and target_pid (main pid) is running, we don't check
  * other processes. Otherwise we check all pids (including all LWPs of
  * the target process). */
@@ -1395,12 +1395,12 @@ int main(int argc, char** argv) {
   _attach_started = (int*)mmap(
       0, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
-  pid_t quickstack_core_pid = fork();
-  if (quickstack_core_pid < 0) {
-    DBG(1, "Failed to fork quickstack process.. Exit");
+  pid_t quickstack2_core_pid = fork();
+  if (quickstack2_core_pid < 0) {
+    DBG(1, "Failed to fork quickstack2 process.. Exit");
     exit(1);
-  } else if (quickstack_core_pid == 0) {
-    /* quickstack core process */
+  } else if (quickstack2_core_pid == 0) {
+    /* quickstack2 core process */
     init_signals();
     dump_stack(threads);
     exit(0);
@@ -1409,30 +1409,30 @@ int main(int argc, char** argv) {
   ignore_signals();
   int exit_code = 0;
   char *args = argv[0];
-  sprintf(args, "quickstack_watchdog");
+  sprintf(args, "quickstack2_watchdog");
   int status;
   bool cleanup_needed = false;
   pid_t exited_pid;
   do {
-    exited_pid = waitpid(quickstack_core_pid, &status, WNOHANG);
+    exited_pid = waitpid(quickstack2_core_pid, &status, WNOHANG);
     if (exited_pid == -1) {
       if (errno == EINTR) {
         continue;
       }
       DBG(1, "Got error on waitpid: %d", exited_pid);
     } else if (exited_pid == 0) {
-      /* quickstack is running */
+      /* quickstack2 is running */
       sleep(1);
       gettimeofday(&t_current, 0);
       if (t_current.tv_sec >= t_begin.tv_sec + timeout_seconds) {
         DBG(1,
-            "Timeout %d seconds reached. Killing quickstack..",
+            "Timeout %d seconds reached. Killing quickstack2..",
             timeout_seconds);
-        kill(quickstack_core_pid, SIGKILL);
+        kill(quickstack2_core_pid, SIGKILL);
         sleep(1);
       }
     } else {
-      /* quickstack ended */
+      /* quickstack2 ended */
       break;
     }
   } while (exited_pid == 0);

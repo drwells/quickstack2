@@ -1,9 +1,9 @@
-project(quickstack)
+project(quickstack2)
 cmake_minimum_required(VERSION 3.1)
 include(CPack)
 
 set(CMAKE_CXX_STANDARD 11)
-set(SOURCE quickstack.cc)
+set(SOURCE quickstack2.cc)
 set(BINUTILS_LIB_DIR /usr/binutils/lib /usr/binutils/lib64)
 
 find_library(BINUTILS_LIB NAMES bfd
@@ -17,9 +17,8 @@ find_path(BINUTILS_INCLUDE_DIR  bfd.h
   /usr/binutils/include)
 include_directories(${BINUTILS_INCLUDE_DIR})
 
-add_executable(quickstack ${SOURCE})
-target_link_libraries(quickstack
+add_executable(quickstack2 ${SOURCE})
+target_link_libraries(quickstack2
   z ${BINUTILS_LIB} ${BINUTILS_ELF_LIB} ${BINUTILS_IBERTY_LIB})
 
-install(TARGETS quickstack DESTINATION bin)
-
+install(TARGETS quickstack2 DESTINATION bin)
