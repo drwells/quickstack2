@@ -35,18 +35,18 @@ int* _attach_started = nullptr;
 stopper_symbol stopper[3] = {
     {"main", 0, 0}, {"start_thread", 0, 0}, {"do_sigwait", 0, 0}};
 int num_stopper_symbol = 3;
-string basic_libs[10] = {"ld-",
-                         "libaio.",
-                         "libc-",
-                         "libm-",
-                         "libdl-",
-                         "libpthread-",
-                         "librt-",
-                         "libgcc_",
-                         "libcrypt-",
-                         "libnss_"
-                         "libnsl_"
-                         "libstdc++"};
+std::string basic_libs[10] = {"ld-",
+                              "libaio.",
+                              "libc-",
+                              "libm-",
+                              "libdl-",
+                              "libpthread-",
+                              "librt-",
+                              "libgcc_",
+                              "libcrypt-",
+                              "libnss_"
+                              "libnsl_"
+                              "libstdc++"};
 int num_basic_libs = 10;
 volatile sig_atomic_t shutdown_program = 0;
 int print_arg = 0;
@@ -118,15 +118,15 @@ void print_stack(const char* format, ...) {
   va_end(args);
 }
 
-static string dirname(const string& path) {
+static std::string dirname(const std::string& path) {
   return path.substr(0, path.find_last_of('/'));
 }
 
-static string basename(const string& path) {
+static std::string basename(const std::string& path) {
   return path.substr(path.find_last_of('/') + 1);
 }
 
-static bool startwith(const string& fullstring, const string& starting) {
+static bool startwith(const std::string& fullstring, const std::string& starting) {
   if (fullstring.length() >= starting.length()) {
     if (!fullstring.compare(0, starting.length(), starting))
       return true;
@@ -136,7 +136,7 @@ static bool startwith(const string& fullstring, const string& starting) {
   return false;
 }
 
-static bool endwith(const string& fullstring, const string& ending) {
+static bool endwith(const std::string& fullstring, const std::string& ending) {
   if (fullstring.length() >= ending.length()) {
     return (0 ==
             fullstring.compare(fullstring.length() - ending.length(),
@@ -173,9 +173,9 @@ static int is_pid_stopped(int pid) {
   return retval;
 }
 
-static bool match_debug_file(const string& name, const char* file) {
-  string ptr = file;
-  string ending = ".debug";
+static bool match_debug_file(const std::string& name, const char* file) {
+  std::string ptr = file;
+  std::string ending = ".debug";
 
   if (name.empty() || ptr.empty())
     return false;
@@ -216,13 +216,13 @@ static int get_user_regs(int pid, user_regs_struct& regs) {
 }
 
 static char* find_debug_file(const char* stripped_file) {
-  string path;
+  std::string path;
   path = debug_dir;
   path += stripped_file;
-  string dirname1 = dirname(path);
-  string name = basename(path);
+  std::string dirname1 = dirname(path);
+  std::string name = basename(path);
 
-  string real_debug_file;
+  std::string real_debug_file;
   DIR* dp = opendir(dirname1.c_str());
   if (dp) {
     struct dirent* dent;
@@ -368,7 +368,7 @@ void bfd_handle::load_symbols(bool relative, ulong addr_begin) {
 
     symbol_ent e;
     e.addr = sinfo.value;
-    e.name = string(sinfo.name);
+    e.name = std::string(sinfo.name);
     st->symbols.push_back(e);
   }
   std::sort(st->symbols.begin(), st->symbols.end(), std::less<symbol_ent>());
@@ -444,13 +444,13 @@ static bool has_exec_permission(const char* filename) {
   return false;
 }
 
-static void read_proc_map_ent(const string& line,
+static void read_proc_map_ent(const std::string& line,
                               proc_info& pinfo,
                               symbol_table_map* stmap) {
   bool delete_marked = false;
   std::istringstream line_sin(line);
-  string tok;
-  vector<string> tokens;
+  std::string tok;
+  std::vector<std::string> tokens;
   while (line_sin >> tok) {
     tokens.push_back(tok);
   }
@@ -459,7 +459,7 @@ static void read_proc_map_ent(const string& line,
   } else if (tokens.size() > 6 && startwith(tokens[6], "(deleted")) {
     delete_marked = true;
   }
-  const string& perms = tokens[1];
+  const std::string& perms = tokens[1];
   if (perms.size() == 5 && perms[3] != 'x') {
     return;
   }
@@ -503,12 +503,12 @@ static void read_proc_map_ent(const string& line,
 }
 
 static void read_proc_maps(int pid, proc_info& pinfo, symbol_table_map* stmap) {
-  const string maps_file_path = "/proc/" + std::to_string(pid) + "/maps";
+  const std::string maps_file_path = "/proc/" + std::to_string(pid) + "/maps";
   std::ifstream maps_file(maps_file_path);
   if (!maps_file.is_open()) {
     return;
   }
-  string line;
+  std::string line;
   while (std::getline(maps_file, line)) {
     read_proc_map_ent(line, pinfo, stmap);
   }
@@ -541,7 +541,7 @@ static const symbol_ent* find_symbol(const symbol_table* st,
   return &*j;
 }
 
-static bool match_basic_lib(const string& path) {
+static bool match_basic_lib(const std::string& path) {
   for (int i = 0; i < num_basic_libs; i++) {
     if (startwith(basename(path), basic_libs[i])) {
       return true;
@@ -948,13 +948,13 @@ static int ptrace_detach_proc(int pid) {
 
 int get_tgid(int target_pid) {
   int tgid = -1;
-  const string status_file_path =
+  const std::string status_file_path =
       "/proc/" + std::to_string(target_pid) + "/status";
   std::ifstream status_file(status_file_path);
   if (!status_file.is_open()) {
     return tgid;
   }
-  string line;
+  std::string line;
   while (std::getline(status_file, line)) {
     if (startwith(line, "Tgid")) {
       sscanf(line.c_str(), "Tgid:%d", &tgid);
@@ -1036,7 +1036,7 @@ void print_trace_report(proc_info* pinfos, const thread_list& threads) {
 
 void attach_and_dump_all(const thread_list& threads,
                          proc_info* pinfos,
-                         vector<ulong>* vals_sps,
+                         std::vector<ulong>* vals_sps,
                          user_regs_struct* regs,
                          bool* fails,
                          bool lock_main) {
@@ -1107,7 +1107,7 @@ void attach_and_dump_all(const thread_list& threads,
 
 void attach_and_dump_lock_all(const thread_list& threads,
                               proc_info* pinfos,
-                              vector<ulong>* vals_sps,
+                              std::vector<ulong>* vals_sps,
                               user_regs_struct* regs,
                               bool* fails) {
   struct timeval tv_start, tv_end;
@@ -1135,7 +1135,7 @@ void dump_stack(const thread_list& threads) {
   uint trace_length = 1000;
   symbol_table_map* stmap = new symbol_table_map();
   proc_info* pinfos = new proc_info[threads.size()];
-  vector<ulong>* vals_sps = new vector<ulong>[threads.size()];
+  std::vector<ulong>* vals_sps = new std::vector<ulong>[threads.size()];
   user_regs_struct* regs = new user_regs_struct[threads.size()];
   bool* fails = new bool[threads.size()];
 
@@ -1176,10 +1176,10 @@ void dump_stack(const thread_list& threads) {
       if (single_line) {
         const size_t name_width =
             thread_names ? thread_info::max_name_len() + 2 : 0;
-        const string name_info = thread_names ? threads[i].name : "";
+        const std::string name_info = thread_names ? threads[i].name : "";
         print_stack("%d  %-*s", threads[i].tid, name_width, name_info.c_str());
       } else {
-        const string name_info = thread_names ? ", " + threads[i].name : "";
+        const std::string name_info = thread_names ? ", " + threads[i].name : "";
         print_stack("\nThread %ld (LWP %d)%s:\n",
                     threads.size() - i,
                     threads[i].tid,

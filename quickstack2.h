@@ -31,10 +31,6 @@
 #include <algorithm>
 #include <libelf.h>
 
-using std::string;
-using std::vector;
-using std::map;
-
 // From binutils/include/demangle.h
 #define DMGL_PARAMS (1 << 0) /* Include function args */
 #define DMGL_ANSI (1 << 1) /* Include const, volatile, etc */
@@ -54,8 +50,8 @@ struct bfd_handle;
 
 struct symbol_ent {
   ulong addr;
-  string name;
-  symbol_ent(const ulong addr = 0, const string& name = "")
+  std::string name;
+  symbol_ent(const ulong addr = 0, const std::string& name = "")
       : addr(addr), name(name) {}
 };
 
@@ -64,7 +60,7 @@ inline bool operator<(const symbol_ent& lhs, const symbol_ent& rhs) {
 }
 
 struct symbol_table {
-  typedef vector<symbol_ent> symbols_type;
+  typedef std::vector<symbol_ent> symbols_type;
   symbols_type symbols;
   ulong text_vma;
   ulong text_size;
@@ -145,7 +141,7 @@ struct symbol_table_map {
   void set(const std::string& path, symbol_table* st) { m[path] = st; }
 
  private:
-  typedef map<std::string, symbol_table*> m_type;
+  typedef std::map<std::string, symbol_table*> m_type;
   m_type m;
 
  private:
@@ -157,7 +153,7 @@ struct proc_map_ent {
   ulong addr_begin;
   ulong addr_size;
   ulong offset;
-  string path;
+  std::string path;
   symbol_table* stbl;
   bool relative : 1;
   bool is_vdso : 1;
@@ -176,7 +172,7 @@ inline bool operator<(const proc_map_ent& lhs, const proc_map_ent& rhs) {
 }
 
 struct proc_info {
-  typedef vector<proc_map_ent> maps_type;
+  typedef std::vector<proc_map_ent> maps_type;
   maps_type maps;
   struct timeval tv_start;
   struct timeval tv_end;
@@ -184,14 +180,14 @@ struct proc_info {
 };
 
 typedef struct stopper_symbol {
-  string name;
+  std::string name;
   ulong addr_begin;
   ulong addr_end;
 } stopper_symbol;
 
 typedef struct thread_info {
   thread_info(const int tid) : tid(tid) {
-    const string file_path = "/proc/" + std::to_string(tid) + "/comm";
+    const std::string file_path = "/proc/" + std::to_string(tid) + "/comm";
     std::ifstream comm_file(file_path);
     if (comm_file.is_open()) {
       std::getline(comm_file, name);
@@ -206,14 +202,14 @@ typedef struct thread_info {
   }
 
   int tid;
-  string name;
+  std::string name;
 } thread_info;
 
 inline bool operator<(const thread_info& lhs, const thread_info& rhs) {
   return lhs.tid < rhs.tid;
 }
 
-typedef struct vector<thread_info> thread_list;
+typedef struct std::vector<thread_info> thread_list;
 
 extern int target_pid;
 extern int debug_level;
