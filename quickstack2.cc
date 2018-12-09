@@ -1,11 +1,40 @@
-#include "quickstack2.h"
+// external libraries
 
-#include <linux/version.h>
-#include <asm/unistd.h>
-#include <getopt.h>
-#include <sys/mman.h>
+// BFD requires that these are defined before inclusion
+#define PACKAGE 1
+#define PACKAGE_VERSION 1
 
+// From binutils/include/demangle.h
+#define DMGL_PARAMS (1 << 0) /* Include function args */
+#define DMGL_ANSI (1 << 1) /* Include const, volatile, etc */
+#define DMGL_VERBOSE (1 << 3) /* Include implementation details.  */
+#define DMGL_TYPES (1 << 4) /* Also try to demangle type encodings. */
+
+#include <bfd.h>        // bfd_get_symbol_info(), bfd_get_section_by_name()
+#include <libelf.h>     // Elf, elf_version()
+
+// LIBC
+#include <sys/mman.h>   // mmap, PROT_READ, PROT_WRITE
+#include <sys/ptrace.h> // ptrace()
+#include <sys/user.h>   // user_regs_struct
+#include <sys/wait.h>   // waitpid()
+#include <sys/time.h>   // gettimeofday()
+
+#include <unistd.h>     // fork(), sleep()
+#include <dirent.h>     // opendir(), readdir(), closedir()
+#include <getopt.h>     // no_argument, required_argument, getopt_long()
+
+// C and C++
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include <algorithm>
+#include <cassert>
 #include <sstream>
+
+#include "quickstack2.h"
 
 #if defined(__i386__)
 #define STACK_IP eip
