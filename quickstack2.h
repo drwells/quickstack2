@@ -1,41 +1,11 @@
 #ifndef quickstack2_h
 #define quickstack2_h
 
-#define PACKAGE 1
-#define PACKAGE_VERSION 1
-
-#include <bfd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <assert.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <sys/ptrace.h>
-#include <sys/user.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <sys/reg.h>
-#include <sys/time.h>
-#include <unistd.h>
-#include <limits.h>
-#include <iostream>
 #include <fstream>
-#include <dirent.h>
-#include <vector>
 #include <map>
 #include <string>
-#include <sstream>
-#include <list>
-#include <algorithm>
-#include <libelf.h>
+#include <vector>
 
-// From binutils/include/demangle.h
-#define DMGL_PARAMS (1 << 0) /* Include function args */
-#define DMGL_ANSI (1 << 1) /* Include const, volatile, etc */
-#define DMGL_VERBOSE (1 << 3) /* Include implementation details.  */
-#define DMGL_TYPES (1 << 4) /* Also try to demangle type encodings. */
 extern "C" char* cplus_demangle(const char* mangled, int options);
 
 #define DBG(v, format, ...)              \
