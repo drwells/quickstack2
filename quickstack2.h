@@ -142,20 +142,19 @@ inline bool operator<(const proc_map_ent& lhs, const proc_map_ent& rhs) {
 }
 
 struct proc_info {
-  typedef std::vector<proc_map_ent> maps_type;
-  maps_type maps;
-  struct timeval tv_start;
-  struct timeval tv_end;
+  std::vector<proc_map_ent> maps;
+  timeval tv_start;
+  timeval tv_end;
   double stall_time;
 };
 
-typedef struct stopper_symbol {
+struct stopper_symbol {
   std::string name;
   ulong addr_begin;
   ulong addr_end;
-} stopper_symbol;
+};
 
-typedef struct thread_info {
+struct thread_info {
   thread_info(const int tid) : tid(tid) {
     const std::string file_path = "/proc/" + std::to_string(tid) + "/comm";
     std::ifstream comm_file(file_path);
@@ -173,7 +172,7 @@ typedef struct thread_info {
 
   int tid;
   std::string name;
-} thread_info;
+};
 
 inline bool operator<(const thread_info& lhs, const thread_info& rhs) {
   return lhs.tid < rhs.tid;
