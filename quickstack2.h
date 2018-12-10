@@ -30,7 +30,7 @@ inline bool operator<(const symbol_ent& lhs, const symbol_ent& rhs) {
 }
 
 struct symbol_table {
-  typedef std::vector<symbol_ent> symbols_type;
+  using symbols_type = std::vector<symbol_ent>;
   symbols_type symbols;
   ulong text_vma;
   ulong text_size;
@@ -94,7 +94,7 @@ struct bfd_handle {
 struct symbol_table_map {
   symbol_table_map() {}
   ~symbol_table_map() {
-    for (m_type::iterator i = m.begin(); i != m.end(); ++i) {
+    for (auto i = m.begin(); i != m.end(); ++i) {
       symbol_table* st = i->second;
       bfd_handle* bh = st->bh;
       bh->close_all();
@@ -102,7 +102,7 @@ struct symbol_table_map {
     }
   }
   symbol_table* get(const std::string& path) {
-    m_type::iterator i = m.find(path);
+    auto i = m.find(path);
     if (i != m.end()) {
       return i->second;
     }
@@ -111,8 +111,7 @@ struct symbol_table_map {
   void set(const std::string& path, symbol_table* st) { m[path] = st; }
 
  private:
-  typedef std::map<std::string, symbol_table*> m_type;
-  m_type m;
+  std::map<std::string, symbol_table*> m;
 
  private:
   symbol_table_map(const symbol_table_map&);
@@ -142,20 +141,19 @@ inline bool operator<(const proc_map_ent& lhs, const proc_map_ent& rhs) {
 }
 
 struct proc_info {
-  typedef std::vector<proc_map_ent> maps_type;
-  maps_type maps;
-  struct timeval tv_start;
-  struct timeval tv_end;
+  std::vector<proc_map_ent> maps;
+  timeval tv_start;
+  timeval tv_end;
   double stall_time;
 };
 
-typedef struct stopper_symbol {
+struct stopper_symbol {
   std::string name;
   ulong addr_begin;
   ulong addr_end;
-} stopper_symbol;
+};
 
-typedef struct thread_info {
+struct thread_info {
   thread_info(const int tid) : tid(tid) {
     const std::string file_path = "/proc/" + std::to_string(tid) + "/comm";
     std::ifstream comm_file(file_path);
@@ -173,13 +171,13 @@ typedef struct thread_info {
 
   int tid;
   std::string name;
-} thread_info;
+};
 
 inline bool operator<(const thread_info& lhs, const thread_info& rhs) {
   return lhs.tid < rhs.tid;
 }
 
-typedef struct std::vector<thread_info> thread_list;
+using thread_list = std::vector<thread_info>;
 
 extern int target_pid;
 extern int debug_level;

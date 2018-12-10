@@ -18,6 +18,7 @@
 #include <sys/ptrace.h> // ptrace()
 #include <sys/user.h>   // user_regs_struct
 #include <sys/wait.h>   // waitpid()
+#include <sys/stat.h>   // stat, stat()
 #include <sys/time.h>   // gettimeofday()
 
 #include <unistd.h>     // fork(), sleep()
@@ -106,9 +107,9 @@ static void ignore_signals() {
 
 void print_log(int level, const char* format, ...) {
   if (level < debug_print_time_level) {
-    struct timeval tv;
+    timeval tv;
     time_t tt;
-    struct tm *tm;
+    tm *tm;
     gettimeofday(&tv, 0);
     tt = tv.tv_sec;
     tm = localtime(&tt);
@@ -254,7 +255,7 @@ static char* find_debug_file(const char* stripped_file) {
   std::string real_debug_file;
   DIR* dp = opendir(dirname1.c_str());
   if (dp) {
-    struct dirent* dent;
+    dirent* dent;
     do {
       dent = readdir(dp);
       if (dent) {
@@ -582,7 +583,7 @@ static bool match_basic_lib(const std::string& path) {
 static int pinfo_symbol_exists(const proc_info& pinfo, ulong addr) {
   /* 0: not exists, 1: core library, 2: others */
   int symbol_type = 0;
-  proc_info::maps_type::const_iterator i = std::upper_bound(
+  auto i = std::upper_bound(
       pinfo.maps.begin(), pinfo.maps.end(), proc_map_ent(addr));
   if (i != pinfo.maps.begin()) {
     --i;
@@ -617,7 +618,7 @@ static const symbol_ent* pinfo_find_symbol(
     ulong& relative_addr,
     const bool ignore_basic_libs = false) {
   offset_r = 0;
-  proc_info::maps_type::const_iterator i = std::upper_bound(
+  auto i = std::upper_bound(
       pinfo.maps.begin(), pinfo.maps.end(), proc_map_ent(addr));
   if (i != pinfo.maps.begin()) {
     --i;
@@ -1003,7 +1004,7 @@ void get_tids(const int target_pid, thread_list& threads) {
     exit(1);
   }
   if (dp) {
-    struct dirent* dent;
+    dirent* dent;
     do {
       dent = readdir(dp);
       if (dent) {
@@ -1035,7 +1036,7 @@ void get_tids(const int target_pid, thread_list& threads) {
   return;
 }
 
-static double timediff(struct timeval tv0, struct timeval tv1) {
+static double timediff(timeval tv0, timeval tv1) {
   return (tv1.tv_sec - tv0.tv_sec) * 1e+3 +
          (double)((double)tv1.tv_usec * 1e-3 - (double)tv0.tv_usec * 1e-3);
 }
@@ -1139,7 +1140,7 @@ void attach_and_dump_lock_all(const thread_list& threads,
                               std::vector<ulong>* vals_sps,
                               user_regs_struct* regs,
                               bool* fails) {
-  struct timeval tv_start, tv_end;
+  timeval tv_start, tv_end;
   DBG(1, "Attaching main process %d, locking all.", target_pid);
   gettimeofday(&tv_start, 0);
   int rc = ptrace_attach_proc(target_pid);
@@ -1228,7 +1229,7 @@ void dump_stack(const thread_list& threads) {
   delete stmap;
 }
 
-struct option long_options[] = {
+option long_options[] = {
     {"?", no_argument, nullptr, '?'},
     {"help", no_argument, nullptr, 'h'},
     {"version", no_argument, nullptr, 'v'},
@@ -1416,8 +1417,8 @@ int main(int argc, char** argv) {
   if (argc <= 1) {
     usage_exit();
   }
-  struct timeval t_begin;
-  struct timeval t_current;
+  timeval t_begin;
+  timeval t_current;
   gettimeofday(&t_begin, 0);
   get_options(argc, argv);
   get_tids(target_pid, threads);
