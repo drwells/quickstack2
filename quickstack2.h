@@ -30,7 +30,7 @@ inline bool operator<(const symbol_ent& lhs, const symbol_ent& rhs) {
 }
 
 struct symbol_table {
-  typedef std::vector<symbol_ent> symbols_type;
+  using symbols_type = std::vector<symbol_ent>;
   symbols_type symbols;
   ulong text_vma;
   ulong text_size;
@@ -179,7 +179,7 @@ inline bool operator<(const thread_info& lhs, const thread_info& rhs) {
   return lhs.tid < rhs.tid;
 }
 
-typedef struct std::vector<thread_info> thread_list;
+using thread_list = std::vector<thread_info>;
 
 extern int target_pid;
 extern int debug_level;
