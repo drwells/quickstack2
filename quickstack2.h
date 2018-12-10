@@ -94,7 +94,7 @@ struct bfd_handle {
 struct symbol_table_map {
   symbol_table_map() {}
   ~symbol_table_map() {
-    for (m_type::iterator i = m.begin(); i != m.end(); ++i) {
+    for (auto i = m.begin(); i != m.end(); ++i) {
       symbol_table* st = i->second;
       bfd_handle* bh = st->bh;
       bh->close_all();
@@ -102,7 +102,7 @@ struct symbol_table_map {
     }
   }
   symbol_table* get(const std::string& path) {
-    m_type::iterator i = m.find(path);
+    auto i = m.find(path);
     if (i != m.end()) {
       return i->second;
     }
@@ -111,8 +111,7 @@ struct symbol_table_map {
   void set(const std::string& path, symbol_table* st) { m[path] = st; }
 
  private:
-  typedef std::map<std::string, symbol_table*> m_type;
-  m_type m;
+  std::map<std::string, symbol_table*> m;
 
  private:
   symbol_table_map(const symbol_table_map&);

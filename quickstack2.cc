@@ -583,7 +583,7 @@ static bool match_basic_lib(const std::string& path) {
 static int pinfo_symbol_exists(const proc_info& pinfo, ulong addr) {
   /* 0: not exists, 1: core library, 2: others */
   int symbol_type = 0;
-  proc_info::maps_type::const_iterator i = std::upper_bound(
+  auto i = std::upper_bound(
       pinfo.maps.begin(), pinfo.maps.end(), proc_map_ent(addr));
   if (i != pinfo.maps.begin()) {
     --i;
@@ -618,7 +618,7 @@ static const symbol_ent* pinfo_find_symbol(
     ulong& relative_addr,
     const bool ignore_basic_libs = false) {
   offset_r = 0;
-  proc_info::maps_type::const_iterator i = std::upper_bound(
+  auto i = std::upper_bound(
       pinfo.maps.begin(), pinfo.maps.end(), proc_map_ent(addr));
   if (i != pinfo.maps.begin()) {
     --i;
