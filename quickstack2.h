@@ -48,10 +48,11 @@ struct auto_fp {
   }
   operator FILE*() { return fp; }
 
+  auto_fp(const auto_fp&) = delete;
+  auto_fp& operator=(const auto_fp&) = delete;
+
  private:
   FILE* fp;
-  auto_fp(const auto_fp&);
-  auto_fp& operator=(const auto_fp&);
 };
 
 struct bfd_handle {
@@ -110,12 +111,11 @@ struct symbol_table_map {
   }
   void set(const std::string& path, symbol_table* st) { m[path] = st; }
 
- private:
-  std::map<std::string, symbol_table*> m;
+  symbol_table_map(const symbol_table_map&) = delete;
+  symbol_table_map& operator=(const symbol_table_map&) = delete;
 
  private:
-  symbol_table_map(const symbol_table_map&);
-  symbol_table_map& operator=(const symbol_table_map&);
+  std::map<std::string, symbol_table*> m;
 };
 
 struct proc_map_ent {
