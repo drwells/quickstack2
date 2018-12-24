@@ -90,16 +90,16 @@ int max_frame_size = 16384 * sizeof(long);
 const char* stack_out;
 FILE* stack_out_fp;
 
-static void set_shutdown(int) { shutdown_program = 1; }
+void set_shutdown(int) { shutdown_program = 1; }
 
-static void init_signals() {
+void init_signals() {
   int signals[] = {SIGHUP, SIGINT, SIGTERM};
   for (uint i = 0; i < sizeof(signals) / sizeof(int); i++)
     signal(signals[i], set_shutdown);
   return;
 }
 
-static void ignore_signals() {
+void ignore_signals() {
   int signals[] = {SIGHUP, SIGINT, SIGTERM};
   for (uint i = 0; i < sizeof(signals) / sizeof(int); i++)
     signal(signals[i], SIG_IGN);
@@ -149,15 +149,15 @@ void print_stack(const char* format, ...) {
   va_end(args);
 }
 
-static std::string dirname(const std::string& path) {
+std::string dirname(const std::string& path) {
   return path.substr(0, path.find_last_of('/'));
 }
 
-static std::string basename(const std::string& path) {
+std::string basename(const std::string& path) {
   return path.substr(path.find_last_of('/') + 1);
 }
 
-static bool startwith(const std::string& fullstring, const std::string& starting) {
+bool startwith(const std::string& fullstring, const std::string& starting) {
   if (fullstring.length() >= starting.length()) {
     if (!fullstring.compare(0, starting.length(), starting))
       return true;
@@ -167,7 +167,7 @@ static bool startwith(const std::string& fullstring, const std::string& starting
   return false;
 }
 
-static bool endwith(const std::string& fullstring, const std::string& ending) {
+bool endwith(const std::string& fullstring, const std::string& ending) {
   if (fullstring.length() >= ending.length()) {
     return (0 ==
             fullstring.compare(fullstring.length() - ending.length(),
@@ -179,7 +179,7 @@ static bool endwith(const std::string& fullstring, const std::string& ending) {
   return false;
 }
 
-static int is_pid_stopped(int pid) {
+int is_pid_stopped(int pid) {
   FILE* status_file;
   char buf[100];
   int retval = 0;
@@ -204,7 +204,7 @@ static int is_pid_stopped(int pid) {
   return retval;
 }
 
-static bool match_debug_file(const std::string& name, const char* file) {
+bool match_debug_file(const std::string& name, const char* file) {
   std::string ptr = file;
   std::string ending = ".debug";
 
@@ -229,7 +229,7 @@ static bool match_debug_file(const std::string& name, const char* file) {
   return true;
 }
 
-static int get_user_regs(int pid, user_regs_struct& regs) {
+int get_user_regs(int pid, user_regs_struct& regs) {
   int count = 100;
   while (1) {
     int e = ptrace(PTRACE_GETREGS, pid, 0, &regs);
@@ -246,7 +246,7 @@ static int get_user_regs(int pid, user_regs_struct& regs) {
   return 0;
 }
 
-static char* find_debug_file(const char* stripped_file) {
+char* find_debug_file(const char* stripped_file) {
   std::string path;
   path = debug_dir;
   path += stripped_file;
@@ -425,7 +425,7 @@ void bfd_handle::load_debug_section_if() {
   }
 }
 
-static bool check_shlib(const std::string& fn) {
+bool check_shlib(const std::string& fn) {
   auto_fp fp(fopen(fn.c_str(), "r"));
   if (fp == 0) {
     return false;
@@ -459,7 +459,7 @@ static bool check_shlib(const std::string& fn) {
   return vaddr == 0;
 }
 
-static bool file_exists(const char* filename) {
+bool file_exists(const char* filename) {
   if (FILE* file = fopen(filename, "r")) {
     fclose(file);
     return true;
@@ -467,7 +467,7 @@ static bool file_exists(const char* filename) {
   return false;
 }
 
-static bool has_exec_permission(const char* filename) {
+bool has_exec_permission(const char* filename) {
   struct stat results;
   stat(filename, &results);
   if (results.st_mode & S_IXUSR)
@@ -475,9 +475,9 @@ static bool has_exec_permission(const char* filename) {
   return false;
 }
 
-static void read_proc_map_ent(const std::string& line,
-                              proc_info& pinfo,
-                              symbol_table_map* stmap) {
+void read_proc_map_ent(const std::string& line,
+                       proc_info& pinfo,
+                       symbol_table_map* stmap) {
   bool delete_marked = false;
   std::istringstream line_sin(line);
   std::string tok;
@@ -533,7 +533,7 @@ static void read_proc_map_ent(const std::string& line,
   pinfo.maps.push_back(e);
 }
 
-static void read_proc_maps(int pid, proc_info& pinfo, symbol_table_map* stmap) {
+void read_proc_maps(int pid, proc_info& pinfo, symbol_table_map* stmap) {
   const std::string maps_file_path = "/proc/" + std::to_string(pid) + "/maps";
   std::ifstream maps_file(maps_file_path);
   if (!maps_file.is_open()) {
@@ -546,11 +546,11 @@ static void read_proc_maps(int pid, proc_info& pinfo, symbol_table_map* stmap) {
   std::sort(pinfo.maps.begin(), pinfo.maps.end(), std::less<proc_map_ent>());
 }
 
-static const symbol_ent* find_symbol(const symbol_table* st,
-                                     ulong addr,
-                                     bool& is_text_r,
-                                     ulong& pos_r,
-                                     ulong& offset_r) {
+const symbol_ent* find_symbol(const symbol_table* st,
+                              ulong addr,
+                              bool& is_text_r,
+                              ulong& pos_r,
+                              ulong& offset_r) {
   is_text_r = false;
   pos_r = 0;
   offset_r = 0;
@@ -572,7 +572,7 @@ static const symbol_ent* find_symbol(const symbol_table* st,
   return &*j;
 }
 
-static bool match_basic_lib(const std::string& path) {
+bool match_basic_lib(const std::string& path) {
   for (int i = 0; i < num_basic_libs; i++) {
     if (startwith(basename(path), basic_libs[i])) {
       return true;
@@ -581,7 +581,7 @@ static bool match_basic_lib(const std::string& path) {
   return false;
 }
 
-static int pinfo_symbol_exists(const proc_info& pinfo, ulong addr) {
+int pinfo_symbol_exists(const proc_info& pinfo, ulong addr) {
   /* 0: not exists, 1: core library, 2: others */
   int symbol_type = 0;
   auto i = std::upper_bound(
@@ -611,7 +611,7 @@ static int pinfo_symbol_exists(const proc_info& pinfo, ulong addr) {
   return symbol_type;
 }
 
-static const symbol_ent* pinfo_find_symbol(
+const symbol_ent* pinfo_find_symbol(
     const proc_info& pinfo,
     const ulong addr,
     ulong& offset_r,
@@ -664,7 +664,7 @@ static const symbol_ent* pinfo_find_symbol(
   return nullptr;
 }
 
-static bool is_stopper_addr(ulong addr) {
+bool is_stopper_addr(ulong addr) {
   bool is_stopper = false;
   int i;
   for (i = 0; i < num_stopper_symbol; i++) {
@@ -676,11 +676,11 @@ static bool is_stopper_addr(ulong addr) {
   return is_stopper;
 }
 
-static int get_stack_trace(int pid,
-                           proc_info& pinfo,
-                           uint maxlen,
-                           const user_regs_struct& regs,
-                           std::vector<ulong>& vals_r) {
+int get_stack_trace(int pid,
+                    proc_info& pinfo,
+                    uint maxlen,
+                    const user_regs_struct& regs,
+                    std::vector<ulong>& vals_r) {
   uint i = 0;
   // candidate for the next stack address
   ulong next_likely_sp = 0;
@@ -950,7 +950,7 @@ void parse_stack_trace(const proc_info& pinfo,
   }
 }
 
-static int ptrace_attach_proc(int pid) {
+int ptrace_attach_proc(int pid) {
   if (ptrace(PTRACE_ATTACH, pid, 0, 0) != 0) {
     if (errno == ESRCH) {
       DBG(11, "No such process: %d", pid);
@@ -969,7 +969,7 @@ static int ptrace_attach_proc(int pid) {
   return 0;
 }
 
-static int ptrace_detach_proc(int pid) {
+int ptrace_detach_proc(int pid) {
   if (ptrace(PTRACE_DETACH, pid, 0, 0) != 0) {
     perror("ptrace(PTRACE_DETACH)");
     return -1;
@@ -1037,7 +1037,7 @@ void get_tids(const int target_pid, thread_list& threads) {
   return;
 }
 
-static double timediff(timeval tv0, timeval tv1) {
+double timediff(timeval tv0, timeval tv1) {
   return (tv1.tv_sec - tv0.tv_sec) * 1e+3 +
          (double)((double)tv1.tv_usec * 1e-3 - (double)tv0.tv_usec * 1e-3);
 }
@@ -1251,14 +1251,14 @@ option long_options[] = {
     {"lock_all", no_argument, nullptr, 'l'},
     {nullptr, 0, nullptr, 0}};
 
-static void show_version() { printf("quickstack2 version %s\n", version); }
+void show_version() { printf("quickstack2 version %s\n", version); }
 
-static void version_exit() {
+void version_exit() {
   show_version();
   exit(1);
 }
 
-static void usage_exit() {
+void usage_exit() {
   show_version();
   printf("Usage: \n");
   printf(" quickstack2 [OPTIONS]\n\n");
@@ -1307,7 +1307,7 @@ static void usage_exit() {
   exit(1);
 }
 
-static void get_options(int argc, char** argv) {
+void get_options(int argc, char** argv) {
   int c, opt_ind = 0;
   while ((c = getopt_long(
               argc, argv, "?absnNflvw:k:d:c:t:p:o:", long_options, &opt_ind)) !=
