@@ -20,8 +20,8 @@ struct bfd_handle;
 
 struct symbol_ent {
   ulong addr;
-  std::string name;
-  symbol_ent(const ulong addr = 0, const std::string& name = "")
+  const char* name;
+  symbol_ent(const ulong addr = 0, const char* name = nullptr)
       : addr(addr), name(name) {}
 };
 

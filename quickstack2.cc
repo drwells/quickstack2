@@ -399,10 +399,7 @@ void bfd_handle::load_symbols(bool relative, ulong addr_begin) {
     if (startwith(sinfo.name, "__tz"))
       continue;
 
-    symbol_ent e;
-    e.addr = sinfo.value;
-    e.name = std::string(sinfo.name);
-    st->symbols.push_back(e);
+    st->symbols.emplace_back(sinfo.value, sinfo.name);
   }
   std::sort(st->symbols.begin(), st->symbols.end(), std::less<symbol_ent>());
   load_stopper_symbols(st, relative, addr_begin);
@@ -558,7 +555,7 @@ const symbol_ent* find_symbol(const symbol_table* st,
   offset_r = 0;
   const symbol_table::symbols_type& ss = st->symbols;
   symbol_table::symbols_type::const_iterator j =
-      std::upper_bound(ss.begin(), ss.end(), symbol_ent(addr));
+      std::upper_bound(ss.begin(), ss.end(), symbol_ent(addr, nullptr));
   if (j != ss.begin()) {
     --j;
   } else {
@@ -909,7 +906,7 @@ void parse_stack_trace(const proc_info& pinfo,
           snprintf(buf, sizeof(buf), "0x%016lx", addr);
           out << buf;
           out << " in ";
-          demangled = get_demangled_symbol(e->name.c_str());
+          demangled = get_demangled_symbol(e->name);
           out << demangled;
           free(demangled);
           if (!print_arg) {
@@ -940,7 +937,7 @@ void parse_stack_trace(const proc_info& pinfo,
           if (!rstr.empty()) {
             rstr += ":";
           }
-          demangled = get_demangled_symbol(e->name.c_str());
+          demangled = get_demangled_symbol(e->name);
           rstr += demangled;
           free(demangled);
         }
