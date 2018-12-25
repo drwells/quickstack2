@@ -183,7 +183,6 @@ extern int target_pid;
 extern int debug_level;
 extern const char* debug_dir;
 extern stopper_symbol stopper[];
-extern int num_stopper_symbol;
 extern int print_arg;
 extern int single_line;
 extern int trace_multiple_procs;

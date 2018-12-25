@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstring>
 #include <sstream>
 #include <thread>
 
@@ -66,7 +67,7 @@ const char* debug_dir = "/usr/lib/debug";
 int* _attach_started = nullptr;
 stopper_symbol stopper[3] = {
     {"main", 0, 0}, {"start_thread", 0, 0}, {"do_sigwait", 0, 0}};
-int num_stopper_symbol = 3;
+constexpr std::size_t num_stopper_symbol = 3;
 std::string basic_libs[10] = {"ld-",
                          "libaio.",
                          "libc-",
@@ -159,6 +160,19 @@ std::string basename(const std::string& path) {
   return path.substr(path.find_last_of('/') + 1);
 }
 
+template<std::size_t N>
+bool startwith(const char* s, char const (&literal)[N])
+{
+  const std::size_t length = std::strlen(s);
+  return N <= length && std::memcmp(s, literal, N-1) == 0;
+}
+
+template<std::size_t N>
+bool startwith(const std::string& s, char const (&literal)[N])
+{
+  return N <= s.size() && std::memcmp(s.data(), literal, N-1) == 0;
+}
+
 bool startwith(const std::string& fullstring, const std::string& starting) {
   if (fullstring.length() >= starting.length()) {
     if (!fullstring.compare(0, starting.length(), starting))
@@ -208,7 +222,7 @@ int is_pid_stopped(int pid) {
 
 bool match_debug_file(const std::string& name, const char* file) {
   std::string ptr = file;
-  std::string ending = ".debug";
+  const std::string ending = ".debug";
 
   if (name.empty() || ptr.empty())
     return false;
@@ -337,7 +351,7 @@ void load_stopper_symbols(symbol_table* sorted_st,
                           bool relative,
                           ulong addr_begin) {
   int matched_stopper = -1;
-  for (symbol_table::symbols_type::iterator i = sorted_st->symbols.begin();
+  for (symbol_table::symbols_type::const_iterator i = sorted_st->symbols.begin();
        i != sorted_st->symbols.end();
        i++) {
     int j = 0;
@@ -348,8 +362,10 @@ void load_stopper_symbols(symbol_table* sorted_st,
       }
       matched_stopper = -1;
     }
+    const std::size_t current_length = std::strlen(i->name);
     for (j = 0; j < num_stopper_symbol; j++) {
-      if (stopper[j].name == i->name) {
+      if (stopper[j].name.size() - 1 == current_length &&
+          std::memcmp(stopper[j].name.data(), i->name, current_length - 1) == 0) {
         stopper[j].addr_begin = i->addr;
         if (relative) {
           stopper[j].addr_begin += addr_begin;
