@@ -32,6 +32,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <cstring>
@@ -496,13 +497,15 @@ void read_proc_map_ent(const std::string& line,
   bool delete_marked = false;
   std::istringstream line_sin(line);
   std::string tok;
-  std::vector<std::string> tokens;
-  while (line_sin >> tok) {
-    tokens.push_back(tok);
+  std::array<std::string, 7> tokens;
+  std::size_t token_index = 0;
+  while (line_sin >> tok && token_index < tokens.size()) {
+    tokens[token_index] = std::move(tok);
+    ++token_index;
   }
-  if (tokens.size() < 6) {
+  if (token_index < 6) {
     return;
-  } else if (tokens.size() > 6 && startwith(tokens[6], "(deleted")) {
+  } else if (token_index > 6 && startwith(tokens[6], "(deleted")) {
     delete_marked = true;
   }
   const std::string& perms = tokens[1];
@@ -517,7 +520,7 @@ void read_proc_map_ent(const std::string& line,
   e.addr_begin = a0;
   e.addr_size = a1 - a0;
   e.offset = std::stol(tokens[2], nullptr, 16);
-  e.path = tokens[5];
+  e.path = std::move(tokens[5]);
   if (e.path.empty()) {
     return;
   } else if (e.path == "[vdso]") {
@@ -545,7 +548,7 @@ void read_proc_map_ent(const std::string& line,
       e.path.c_str(),
       (int)e.relative,
       e.addr_begin);
-  pinfo.maps.push_back(e);
+  pinfo.maps.push_back(std::move(e));
 }
 
 void read_proc_maps(int pid, proc_info& pinfo, symbol_table_map* stmap) {
