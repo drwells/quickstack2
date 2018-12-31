@@ -20,8 +20,8 @@ struct bfd_handle;
 
 struct symbol_ent {
   ulong addr;
-  std::string name;
-  symbol_ent(const ulong addr = 0, const std::string& name = "")
+  const char* name;
+  symbol_ent(const ulong addr = 0, const char* name = nullptr)
       : addr(addr), name(name) {}
 };
 
@@ -183,7 +183,6 @@ extern int target_pid;
 extern int debug_level;
 extern const char* debug_dir;
 extern stopper_symbol stopper[];
-extern int num_stopper_symbol;
 extern int print_arg;
 extern int single_line;
 extern int trace_multiple_procs;

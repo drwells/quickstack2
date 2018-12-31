@@ -32,8 +32,10 @@
 #include <string.h>
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <chrono>
+#include <cstring>
 #include <sstream>
 #include <thread>
 
@@ -66,7 +68,7 @@ const char* debug_dir = "/usr/lib/debug";
 int* _attach_started = nullptr;
 stopper_symbol stopper[3] = {
     {"main", 0, 0}, {"start_thread", 0, 0}, {"do_sigwait", 0, 0}};
-int num_stopper_symbol = 3;
+constexpr std::size_t num_stopper_symbol = 3;
 std::string basic_libs[10] = {"ld-",
                          "libaio.",
                          "libc-",
@@ -159,6 +161,19 @@ std::string basename(const std::string& path) {
   return path.substr(path.find_last_of('/') + 1);
 }
 
+template<std::size_t N>
+bool startwith(const char* s, char const (&literal)[N])
+{
+  const std::size_t length = std::strlen(s);
+  return N <= length && std::memcmp(s, literal, N-1) == 0;
+}
+
+template<std::size_t N>
+bool startwith(const std::string& s, char const (&literal)[N])
+{
+  return N <= s.size() && std::memcmp(s.data(), literal, N-1) == 0;
+}
+
 bool startwith(const std::string& fullstring, const std::string& starting) {
   if (fullstring.length() >= starting.length()) {
     if (!fullstring.compare(0, starting.length(), starting))
@@ -208,7 +223,7 @@ int is_pid_stopped(int pid) {
 
 bool match_debug_file(const std::string& name, const char* file) {
   std::string ptr = file;
-  std::string ending = ".debug";
+  const std::string ending = ".debug";
 
   if (name.empty() || ptr.empty())
     return false;
@@ -337,7 +352,7 @@ void load_stopper_symbols(symbol_table* sorted_st,
                           bool relative,
                           ulong addr_begin) {
   int matched_stopper = -1;
-  for (symbol_table::symbols_type::iterator i = sorted_st->symbols.begin();
+  for (symbol_table::symbols_type::const_iterator i = sorted_st->symbols.begin();
        i != sorted_st->symbols.end();
        i++) {
     int j = 0;
@@ -348,8 +363,10 @@ void load_stopper_symbols(symbol_table* sorted_st,
       }
       matched_stopper = -1;
     }
+    const std::size_t current_length = std::strlen(i->name);
     for (j = 0; j < num_stopper_symbol; j++) {
-      if (stopper[j].name == i->name) {
+      if (stopper[j].name.size() - 1 == current_length &&
+          std::memcmp(stopper[j].name.data(), i->name, current_length - 1) == 0) {
         stopper[j].addr_begin = i->addr;
         if (relative) {
           stopper[j].addr_begin += addr_begin;
@@ -399,10 +416,7 @@ void bfd_handle::load_symbols(bool relative, ulong addr_begin) {
     if (startwith(sinfo.name, "__tz"))
       continue;
 
-    symbol_ent e;
-    e.addr = sinfo.value;
-    e.name = std::string(sinfo.name);
-    st->symbols.push_back(e);
+    st->symbols.emplace_back(sinfo.value, sinfo.name);
   }
   std::sort(st->symbols.begin(), st->symbols.end(), std::less<symbol_ent>());
   load_stopper_symbols(st, relative, addr_begin);
@@ -483,13 +497,15 @@ void read_proc_map_ent(const std::string& line,
   bool delete_marked = false;
   std::istringstream line_sin(line);
   std::string tok;
-  std::vector<std::string> tokens;
-  while (line_sin >> tok) {
-    tokens.push_back(tok);
+  std::array<std::string, 7> tokens;
+  std::size_t token_index = 0;
+  while (line_sin >> tok && token_index < tokens.size()) {
+    tokens[token_index] = std::move(tok);
+    ++token_index;
   }
-  if (tokens.size() < 6) {
+  if (token_index < 6) {
     return;
-  } else if (tokens.size() > 6 && startwith(tokens[6], "(deleted")) {
+  } else if (token_index > 6 && startwith(tokens[6], "(deleted")) {
     delete_marked = true;
   }
   const std::string& perms = tokens[1];
@@ -504,7 +520,7 @@ void read_proc_map_ent(const std::string& line,
   e.addr_begin = a0;
   e.addr_size = a1 - a0;
   e.offset = std::stol(tokens[2], nullptr, 16);
-  e.path = tokens[5];
+  e.path = std::move(tokens[5]);
   if (e.path.empty()) {
     return;
   } else if (e.path == "[vdso]") {
@@ -532,7 +548,7 @@ void read_proc_map_ent(const std::string& line,
       e.path.c_str(),
       (int)e.relative,
       e.addr_begin);
-  pinfo.maps.push_back(e);
+  pinfo.maps.push_back(std::move(e));
 }
 
 void read_proc_maps(int pid, proc_info& pinfo, symbol_table_map* stmap) {
@@ -558,7 +574,7 @@ const symbol_ent* find_symbol(const symbol_table* st,
   offset_r = 0;
   const symbol_table::symbols_type& ss = st->symbols;
   symbol_table::symbols_type::const_iterator j =
-      std::upper_bound(ss.begin(), ss.end(), symbol_ent(addr));
+      std::upper_bound(ss.begin(), ss.end(), symbol_ent(addr, nullptr));
   if (j != ss.begin()) {
     --j;
   } else {
@@ -909,7 +925,7 @@ void parse_stack_trace(const proc_info& pinfo,
           snprintf(buf, sizeof(buf), "0x%016lx", addr);
           out << buf;
           out << " in ";
-          demangled = get_demangled_symbol(e->name.c_str());
+          demangled = get_demangled_symbol(e->name);
           out << demangled;
           free(demangled);
           if (!print_arg) {
@@ -940,7 +956,7 @@ void parse_stack_trace(const proc_info& pinfo,
           if (!rstr.empty()) {
             rstr += ":";
           }
-          demangled = get_demangled_symbol(e->name.c_str());
+          demangled = get_demangled_symbol(e->name);
           rstr += demangled;
           free(demangled);
         }
@@ -1391,7 +1407,7 @@ int cont_process_if(int pid) {
     int rc = kill(pid, SIGCONT);
     if (rc == ESRCH)
       return 0;
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(200));
   }
   if (is_stopped) {
     DBG(1, "Failed to start pid %d", pid);
@@ -1461,14 +1477,14 @@ int main(int argc, char** argv) {
       DBG(1, "Got error on waitpid: %d", exited_pid);
     } else if (exited_pid == 0) {
       /* quickstack2 is running */
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      std::this_thread::sleep_for(std::chrono::nanoseconds(100));
       gettimeofday(&t_current, 0);
       if (t_current.tv_sec >= t_begin.tv_sec + timeout_seconds) {
         DBG(1,
             "Timeout %d seconds reached. Killing quickstack2..",
             timeout_seconds);
         kill(quickstack2_core_pid, SIGKILL);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::nanoseconds(100));
       }
     } else {
       /* quickstack2 ended */
@@ -1485,7 +1501,7 @@ int main(int argc, char** argv) {
   if (WIFSIGNALED(status)) {
     DBG(1, "Killed by signal %d", WTERMSIG(status));
     cleanup_needed = true;
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(500));
   }
   if (*_attach_started) {
     int stop_status = cont_all_process(target_pid, threads, cleanup_needed);
