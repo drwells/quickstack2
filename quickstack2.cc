@@ -1407,7 +1407,7 @@ int cont_process_if(int pid) {
     int rc = kill(pid, SIGCONT);
     if (rc == ESRCH)
       return 0;
-    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(200));
   }
   if (is_stopped) {
     DBG(1, "Failed to start pid %d", pid);
@@ -1477,14 +1477,14 @@ int main(int argc, char** argv) {
       DBG(1, "Got error on waitpid: %d", exited_pid);
     } else if (exited_pid == 0) {
       /* quickstack2 is running */
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      std::this_thread::sleep_for(std::chrono::nanoseconds(100));
       gettimeofday(&t_current, 0);
       if (t_current.tv_sec >= t_begin.tv_sec + timeout_seconds) {
         DBG(1,
             "Timeout %d seconds reached. Killing quickstack2..",
             timeout_seconds);
         kill(quickstack2_core_pid, SIGKILL);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::nanoseconds(100));
       }
     } else {
       /* quickstack2 ended */
@@ -1501,7 +1501,7 @@ int main(int argc, char** argv) {
   if (WIFSIGNALED(status)) {
     DBG(1, "Killed by signal %d", WTERMSIG(status));
     cleanup_needed = true;
-    std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(500));
   }
   if (*_attach_started) {
     int stop_status = cont_all_process(target_pid, threads, cleanup_needed);
