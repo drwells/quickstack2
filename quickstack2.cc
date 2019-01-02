@@ -55,44 +55,47 @@
 #error "unsupported os"
 #endif
 
+// fixed parameters
 const char* version = "0.10";
-int target_pid = 0;
-int debug_level = 2;
-int debug_print_time_level = 10;
-int frame_check = 0;
-int flush_log = 3;
-int timeout_seconds = 600;
-bool lock_all = false;
+static const std::array<std::string, 12> basic_libs =
+  {{{"ld-"},
+    {"libaio."},
+    {"libc-"},
+    {"libm-"},
+    {"libdl-"},
+    {"libpthread-"},
+    {"librt-"},
+    {"libgcc_"},
+    {"libcrypt-"},
+    {"libnss_"},
+    {"libnsl_"},
+    {"libstdc++"}}};
+constexpr std::size_t max_frame_size = 16384 * sizeof(long);
 
-const char* debug_dir = "/usr/lib/debug";
-int* _attach_started = nullptr;
-stopper_symbol stopper[3] = {
-    {"main", 0, 0}, {"start_thread", 0, 0}, {"do_sigwait", 0, 0}};
-constexpr std::size_t num_stopper_symbol = 3;
-std::string basic_libs[10] = {"ld-",
-                         "libaio.",
-                         "libc-",
-                         "libm-",
-                         "libdl-",
-                         "libpthread-",
-                         "librt-",
-                         "libgcc_",
-                         "libcrypt-",
-                         "libnss_"
-                         "libnsl_"
-                         "libstdc++"};
-int num_basic_libs = 10;
-volatile sig_atomic_t shutdown_program = 0;
-int print_arg = 0;
-int single_line = 0;
-int thread_names = 0;
-int line_numbers = 0;
-int trace_multiple_procs = 0;
-int basename_only = 0;
-int max_ptrace_calls = 1000;
-int max_frame_size = 16384 * sizeof(long);
-const char* stack_out;
-FILE* stack_out_fp;
+// run-time parameters
+static const char* debug_dir = "/usr/lib/debug";
+static int target_pid = 0;
+static int debug_level = 2;
+static int debug_print_time_level = 10;
+static bool frame_check = false;
+static int flush_log = 3;
+static int timeout_seconds = 600;
+static bool lock_all = false;
+static int print_arg = 0;
+static int single_line = 0;
+static int thread_names = 0;
+static int line_numbers = 0;
+static int trace_multiple_procs = 0;
+static bool basename_only = false;
+static int max_ptrace_calls = 1000;
+
+// global variables
+static std::array<stopper_symbol, 3> stopper_symbols = {{
+    {"main", 0, 0}, {"start_thread", 0, 0}, {"do_sigwait", 0, 0}}};
+static int* attach_started = nullptr;
+static volatile sig_atomic_t shutdown_program = 0;
+static const char* stack_out;
+static FILE* stack_out_fp;
 
 void set_shutdown(int) { shutdown_program = 1; }
 
@@ -351,27 +354,24 @@ void bfd_handle::close() {
 void load_stopper_symbols(symbol_table* sorted_st,
                           bool relative,
                           ulong addr_begin) {
-  int matched_stopper = -1;
-  for (symbol_table::symbols_type::const_iterator i = sorted_st->symbols.begin();
-       i != sorted_st->symbols.end();
-       i++) {
-    int j = 0;
-    if (matched_stopper >= 0) {
-      stopper[matched_stopper].addr_end = i->addr;
+  stopper_symbol* matched_stopper = nullptr;
+  for (const symbol_ent &found_symbol : sorted_st->symbols) {
+    if (matched_stopper) {
+      matched_stopper->addr_end = found_symbol.addr;
       if (relative) {
-        stopper[matched_stopper].addr_end += addr_begin;
+        matched_stopper->addr_end += addr_begin;
       }
-      matched_stopper = -1;
+      matched_stopper = nullptr;
     }
-    const std::size_t current_length = std::strlen(i->name);
-    for (j = 0; j < num_stopper_symbol; j++) {
-      if (stopper[j].name.size() - 1 == current_length &&
-          std::memcmp(stopper[j].name.data(), i->name, current_length - 1) == 0) {
-        stopper[j].addr_begin = i->addr;
+    const std::size_t current_length = std::strlen(found_symbol.name);
+    for (stopper_symbol &symbol : stopper_symbols) {
+      if (symbol.name.size() - 1 == current_length &&
+          std::memcmp(symbol.name.data(), found_symbol.name, current_length - 1) == 0) {
+        symbol.addr_begin = found_symbol.addr;
         if (relative) {
-          stopper[j].addr_begin += addr_begin;
+          symbol.addr_begin += addr_begin;
         }
-        matched_stopper = j;
+        matched_stopper = &symbol;
       }
     }
   }
@@ -591,8 +591,8 @@ const symbol_ent* find_symbol(const symbol_table* st,
 }
 
 bool match_basic_lib(const std::string& path) {
-  for (int i = 0; i < num_basic_libs; i++) {
-    if (startwith(basename(path), basic_libs[i])) {
+  for (const std::string &basic_lib : basic_libs) {
+    if (startwith(basename(path), basic_lib)) {
       return true;
     }
   }
@@ -683,15 +683,12 @@ const symbol_ent* pinfo_find_symbol(
 }
 
 bool is_stopper_addr(ulong addr) {
-  bool is_stopper = false;
-  int i;
-  for (i = 0; i < num_stopper_symbol; i++) {
-    if (stopper[i].addr_begin < addr && stopper[i].addr_end > addr) {
-      is_stopper = true;
-      break;
+  for (const stopper_symbol &symbol : stopper_symbols) {
+    if (symbol.addr_begin < addr && symbol.addr_end > addr) {
+      return true;
     }
   }
-  return is_stopper;
+  return false;
 }
 
 int get_stack_trace(int pid,
@@ -1205,7 +1202,7 @@ void dump_stack(const thread_list& threads) {
     exit(1);
   }
   DBG(1, "Gathering stack traces..");
-  *_attach_started = 1;
+  *attach_started = 1;
 
   if (lock_all) {
     attach_and_dump_lock_all(threads, pinfos, vals_sps, regs, fails);
@@ -1341,7 +1338,7 @@ void get_options(int argc, char** argv) {
       print_arg = 1;
       break;
     case 'b':
-      basename_only = 1;
+      basename_only = true;
       break;
     case 'c':
       max_ptrace_calls = atoi(optarg);
@@ -1368,7 +1365,7 @@ void get_options(int argc, char** argv) {
       stack_out = optarg;
       break;
     case 'f':
-      frame_check = 1;
+      frame_check = true;
       break;
     case 'm':
       trace_multiple_procs = atoi(optarg);
@@ -1447,7 +1444,7 @@ int main(int argc, char** argv) {
   gettimeofday(&t_begin, 0);
   get_options(argc, argv);
   get_tids(target_pid, threads);
-  _attach_started = (int*)mmap(
+  attach_started = (int*)mmap(
       0, PAGE_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
 
   pid_t quickstack2_core_pid = fork();
@@ -1503,7 +1500,7 @@ int main(int argc, char** argv) {
     cleanup_needed = true;
     std::this_thread::sleep_for(std::chrono::nanoseconds(500));
   }
-  if (*_attach_started) {
+  if (*attach_started) {
     int stop_status = cont_all_process(target_pid, threads, cleanup_needed);
     if (stop_status) {
       DBG(1,
