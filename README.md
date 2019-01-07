@@ -15,9 +15,11 @@ quickstack internally scans stack frames and guesses caller functions. For
 `-fno-omit-frame-pointer`.
 
 quickstack2, as the name implies, is based on quickstack and contains some
-additional command line options, performance improvements, and support for
-ARM64. Some of the defaults (notably for printing function line numbers) are
-different, but the main ptrace-based approach is the same.
+additional command line options, performance improvements (it can start and
+finish in about 50 milliseconds, while quickstack is closer to 300
+milliseconds), and support for ARM64. Some of the defaults (notably for printing
+function line numbers) are different, but the main ptrace-based approach is the
+same.
 
 ## compiling quickstack2
 * Install binutils 2.22+ and elfutils-libelf-devel
@@ -33,7 +35,9 @@ sudo apt-get install libiberty-dev
 
 
 ## quick example
+```
 [user$] quickstack2 -f -p $(pidof mysqld)
+```
 
 ## License
 BSD 3-Clause License
