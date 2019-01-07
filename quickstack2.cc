@@ -75,7 +75,7 @@ constexpr std::size_t max_frame_size = 16384 * sizeof(long);
 // run-time parameters
 static const char* debug_dir = "/usr/lib/debug";
 static int target_pid = 0;
-static int debug_level = 2;
+static int debug_level = 0;
 static int debug_print_time_level = 10;
 static bool frame_check = false;
 static int flush_log = 3;
