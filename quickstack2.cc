@@ -75,7 +75,7 @@ constexpr std::size_t max_frame_size = 16384 * sizeof(long);
 // run-time parameters
 static const char* debug_dir = "/usr/lib/debug";
 static int target_pid = 0;
-static int debug_level = 2;
+static int debug_level = 0;
 static int debug_print_time_level = 10;
 static bool frame_check = false;
 static int flush_log = 3;
@@ -1275,50 +1275,42 @@ void version_exit() {
 
 void usage_exit() {
   show_version();
-  printf("Usage: \n");
-  printf(" quickstack2 [OPTIONS]\n\n");
+  printf("Usage: quickstack2 [OPTION]... -p PID\n");
+  printf("Print the stack trace of the process with pid PID.\n");
   printf("Example: \n");
-  printf(" quickstack2 -p `pidof mysqld`\n\n");
+  printf(" quickstack2 -p $(pidof mysqld)\n\n");
   printf("Options (short name):\n");
-  printf(" -p, --pid=N                    :Target process id\n");
-  printf(" -d, --debug=N                  :Debug level\n");
-  printf(
-      " -s, --single_line              :Printing call stack info into one line "
-      "per process, instead of gdb-like output\n");
-  printf(" -n, --thread_names             :Print thread names\n");
-  printf(" -N, --line_numbers             :Print (if available) function line "
-         "numbers\n");
-  printf(
-      " -c, --calls=N                  :Maximum ptrace call counts per "
-      "process. Default is 1000\n");
-  printf(
-      " -b, --basename_only            :Suppressing printing directory name of "
-      "the target source files, but printing basename only. This makes easier "
-      "for reading.\n");
-  printf(
-      " -f, --frame_check              :Checking frame pointers on "
-      "non-standard libraries.\n");
-  printf(
-      " -o, --stack_out=f              :Writing stack traces to this file. "
-      "Default is STDOUT.\n");
-  printf(
-      " -t, --debug_print_time_level=N :Suppressing printing timestamp if "
-      "debug level is higher than N. This is for performance reason and "
-      "default level (10) should be fine in most of cases.\n");
-  printf(
-      " -f, --multipe_targets=[0|1]    :Set 1 if tracing multiple different "
-      "processes at one time\n");
-  printf(
-      " -w, --flush_log=N              :Flushing every log output if log level "
-      "is equal or under N\n");
-  printf(
-      " -k, --timeout_seconds=N        :Terminates quickstack2 if exceeding N "
-      "seconds. Default is 600 seconds\n");
-  printf(
-      " -l, --lock_all                 :Locking main process (given by --pid) "
-      "during parsing all other processes. This will lock the whole process "
-      "during taking all stack traces, so stall time is slightly increased, "
-      "but will give more accurate results.\n");
+  printf(" -p, --pid=N                    Target process id.\n");
+  printf(" -d, --debug=N                  Debug level. Defaults to 0.\n");
+  printf(" -s, --single_line              Print call stack info into one line per\n"
+         "                                  process, instead of gdb-like output\n"
+         "                                  output.\n");
+  printf(" -n, --thread_names             Print thread names.\n");
+  printf(" -N, --line_numbers             Print (if available) function line\n"
+         "                                  numbers.\n");
+  printf(" -c, --calls=N                  Maximum ptrace call counts per process.\n"
+         "                                  Default is 1000.\n");
+  printf(" -b, --basename_only            Suppress printing directory names of\n"
+         "                                  the target source files, and print\n"
+         "                                  instead only the base name.\n");
+  printf(" -f, --frame_check              Check frame pointers on non-standard\n");
+  printf("                                  libraries.\n");
+  printf(" -o, --stack_out=f              Writing stack traces to this file.\n");
+  printf("                                  Default is STDOUT.\n");
+  printf(" -t, --debug_print_time_level=N Suppress printing debug timestamps if\n");
+  printf("                                  the debug level is higher than N.\n");
+  printf(" -f, --multiple_targets=[0|1]   Set to 1 if tracing multiple different\n"
+         "                                  processes at one time\n");
+  printf(" -w, --flush_log=N              Flush every log output if log level is\n"
+         "                                  equal or under N.\n");
+  printf(" -k, --timeout_seconds=N        Terminates quickstack2 if it runs more\n"
+         "                                  than N seconds. Default is 600 seconds.\n");
+  printf(" -l, --lock_all                 Lock the target process (given by --pid)\n"
+         "                                  while parsing all other processes.\n"
+         "                                  This will lock the whole process while\n"
+         "                                  taking all stack traces, so stall time\n"
+         "                                  is slightly increased, but will give\n"
+         "                                  more accurate results.\n");
   exit(1);
 }
 
