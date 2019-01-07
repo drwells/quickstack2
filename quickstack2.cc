@@ -365,7 +365,7 @@ void load_stopper_symbols(symbol_table* sorted_st,
     }
     const std::size_t current_length = std::strlen(found_symbol.name);
     for (stopper_symbol &symbol : stopper_symbols) {
-      if (symbol.name.size() - 1 == current_length &&
+      if (symbol.name.size() == current_length &&
           std::memcmp(symbol.name.data(), found_symbol.name, current_length - 1) == 0) {
         symbol.addr_begin = found_symbol.addr;
         if (relative) {
