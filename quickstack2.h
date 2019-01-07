@@ -179,20 +179,4 @@ inline bool operator<(const thread_info& lhs, const thread_info& rhs) {
 
 using thread_list = std::vector<thread_info>;
 
-extern int target_pid;
-extern int debug_level;
-extern const char* debug_dir;
-extern stopper_symbol stopper[];
-extern int print_arg;
-extern int single_line;
-extern int trace_multiple_procs;
-extern int basename_only;
-extern int max_ptrace_calls;
-extern int frame_check;
-extern int debug_print_time_level;
-extern const char* stack_out;
-extern int flush_log;
-extern int timeout_seconds;
-extern bool lock_all;
-
 #endif
